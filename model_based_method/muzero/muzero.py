@@ -415,23 +415,23 @@ def scale_gradient(tensor, scale):
     return tensor * scale + tensor.detach() * (1. - scale)
 
 
-def train_network(config, network, replay_buffer, optimizer, train_results):
+def train_network(config, network, replay_buffer, optimizer, train_log):
     """
     Train Networks
     """
     for _ in range(config['train_per_epoch']):
         batch = replay_buffer.sample_batch()
-        update_weights(config, network, optimizer, batch, train_results)
+        update_weights(config, network, optimizer, batch, train_log)
 
 
-def update_weights(config, network, optimizer, batch, train_results):
+def update_weights(config, network, optimizer, batch, train_log):
     """
     Train networks by sampling games from repay buffer
     config: dictionary specifying parameter configurations
     network: network class to train
     optimizer: optimizer used to update the network_model weights
     batch: batch of experience
-    train_results: class to store the train results
+    train_log: class to store the train results
     """
     # for every game in sample batch, unroll and update network_model weights
     def loss():
@@ -496,10 +496,10 @@ def update_weights(config, network, optimizer, batch, train_results):
             hidden_representation = hidden_representation / scale
 
         # store loss result for plotting
-        train_results.total_losses.append(loss.item())
-        train_results.value_losses.append(total_value_loss)
-        train_results.policy_losses.append(total_policy_loss)
-        train_results.reward_losses.append(total_reward_loss)
+        train_log.total_losses.append(loss.item())
+        train_log.value_losses.append(total_value_loss)
+        train_log.policy_losses.append(total_policy_loss)
+        train_log.reward_losses.append(total_reward_loss)
         return loss
 
     optimizer.zero_grad()
@@ -569,7 +569,7 @@ class MCTS():
         best_action, best_child = None, None
         ucb_compare = -np.inf
         for action,child in node.children.items():
-            ucb = self.ucb_score(config, node, child, min_max_stats)
+            ucb = self.compute_ucb_score(config, node, child, min_max_stats)
             if ucb > ucb_compare:
                 ucb_compare = ucb
                 best_action = action # action, int
@@ -577,7 +577,7 @@ class MCTS():
         return best_action, best_child
 
 
-    def ucb_score(self, config, parent, child, min_max_stats):
+    def compute_ucb_score(self, config, parent, child, min_max_stats):
         """
         Compute UCB Score of a child given the parent statistics
         Appendix B of MuZero paper
@@ -706,8 +706,7 @@ class MinMaxStats(object):
         return value
 
 
-
-class TrainResults(object):
+class TrainLogs(object):
     def __init__(self):
         self.value_losses = []
         self.reward_losses = []
@@ -715,46 +714,46 @@ class TrainResults(object):
         self.total_losses = []
 
     def plot_total_loss(self):
-        x_vals = np.arange(len(self.total_losses))
-        fig, ax = plt.subplots()
-        ax.plot(x_vals, self.total_losses, label="Train Loss")
+        x = np.arange(len(self.total_losses))
+        plt.figure()
+        plt.plot(x, self.total_losses, label="Train Loss", color='k')
         plt.xlabel("Train Steps")
         plt.ylabel("Loss")
         plt.savefig('./RL/ModelBasedML/figure/total_loss.png')
 
     def plot_individual_losses(self):
-        x_vals = np.arange(len(self.total_losses))
-        fig, ax = plt.subplots()
-        ax.plot(x_vals, self.value_losses, label="Value Loss")
-        ax.plot(x_vals, self.policy_losses, label="Policy Loss")
-        ax.plot(x_vals, self.reward_losses, label="Reward Loss")
-        plt.xlabel("Train Steps")
-        plt.ylabel("Losses")
+        x = np.arange(len(self.total_losses))
+        plt.figure()
+        plt.plot(x, self.value_losses, label="Value Loss", color='r')
+        plt.plot(x, self.policy_losses, label="Policy Loss", color='g')
+        plt.plot(x, self.reward_losses, label="Reward Loss", color='b')
+        plt.xlabel("Train Steps", fontsize=15)
+        plt.ylabel("Losses", fontsize=15)
         plt.legend()
         plt.savefig('./RL/ModelBasedML/figure/individual_loss.png')
 
 
-class TestResults(object):
+class TestLogs(object):
 
     def __init__(self):
-        self.test_rewards = []
+        self.test_log = []
 
     def add_reward(self, reward):
-        self.test_rewards.append(reward)
+        self.test_log.append(reward)
 
     def plot_rewards(self):
-        x_vals = np.arange(len(self.test_rewards))
-        fig, ax = plt.subplots()
-        ax.plot(x_vals, self.test_rewards, label="Test Reward")
-        plt.xlabel("Test Episodes")
-        plt.ylabel("Reward")
+        x = np.arange(len(self.test_log))
+        plt.figure()
+        plt.plot(x, self.test_log, label="Test Reward", color='orange')
+        plt.xlabel("Test Episodes", fontsize=15)
+        plt.ylabel("Reward", fontsize=15)
         plt.savefig('./RL/ModelBasedML/figure/test_reward.png')
 
 
 def self_play(env, config, replay_buffer, network):
     # create objects to store data for plotting
-    test_rewards = TestResults()
-    train_results = TrainResults()
+    test_log = TestLogs()
+    train_log = TrainLogs()
     
     # create optimizer for training
     optimizer = torch.optim.Adam(network.parameters(), lr=config['lr_init'])
@@ -765,13 +764,13 @@ def self_play(env, config, replay_buffer, network):
         score = play_games(
             config, replay_buffer, network, env)
         print("Average traininig score:", score)
-        train_network(config, network, replay_buffer, optimizer, train_results)
-        print("Average test score:", test(config, network, env, test_rewards))
+        train_network(config, network, replay_buffer, optimizer, train_log)
+        print("Average test score:", test(config, network, env, test_log))
 
     # plot
-    train_results.plot_individual_losses()
-    train_results.plot_total_loss()
-    test_rewards.plot_rewards()
+    train_log.plot_individual_losses()
+    train_log.plot_total_loss()
+    test_log.plot_rewards()
 
 
 def play_games(config, replay_buffer, network, env):
@@ -788,7 +787,7 @@ def play_games(config, replay_buffer, network, env):
     return returns / config['games_per_epoch']
 
 
-def play_game(config, network: Networks, env):
+def play_game(config, network, env):
     """
     Plays one game
     """
@@ -825,14 +824,13 @@ def play_game(config, network: Networks, env):
     return game
 
 
-def test(config, network, env, test_rewards):
+def test(config, network, env, test_log):
     """
     Test performance using trained networks
     """
     mcts = MCTS(config)
     returns = 0
     for _ in range(config['episodes_per_test']):
-        # env.seed(1) # use for reproducibility of trajectories
         start_state, _ = env.reset()
         game = Game(config['action_space_size'], config['discount'], start_state)
         while not game.done and len(game.action_history) < config['max_moves']:
@@ -847,7 +845,7 @@ def test(config, network, env, test_rewards):
             game.take_action(action, env)
         total_reward = sum(game.reward_history)
         print(f'Total reward for a test game: {total_reward}')
-        test_rewards.add_reward(total_reward)
+        test_log.add_reward(total_reward)
         returns += total_reward
     return returns / config['episodes_per_test']
 
@@ -907,17 +905,6 @@ pol_net = PolicyNetwork(input_size=config['state_shape'], hidden_neurons=config[
 dyn_net = DynamicNetwork(input_size=config['state_shape']+config['action_space_size'], hidden_neurons=config['hidden_neurons'], embedding_size=config['embedding_size']) # dynamics function
 rew_net = RewardNetwork(input_size=config['state_shape']+config['action_space_size'], hidden_neurons=config['hidden_neurons']) # from dynamics function
 network = Networks(rep_net, val_net, pol_net, dyn_net, rew_net, max_value=config['max_value'])
-
-# action_size = 2
-# state_shape = 4
-# embedding_size = 4
-# hidden_neurons = 48
-# rep_net = RepresentationNetwork(input_size=state_shape, hidden_neurons=hidden_neurons, embedding_size=embedding_size) # representation function
-# val_net = ValueNetwork(input_size=4, hidden_neurons=hidden_neurons, value_support_size=value_support_size) # prediction function
-# pol_net = PolicyNetwork(input_size=4, hidden_neurons=hidden_neurons, action_size=action_size) # prediction function
-# dyn_net = DynamicNetwork(input_size=6, hidden_neurons=hidden_neurons, embedding_size=embedding_size) # dynamics function
-# rew_net = RewardNetwork(input_size=6, hidden_neurons=hidden_neurons) # from dynamics function
-# network = Networks(rep_net, val_net, pol_net, dyn_net, rew_net, max_value=200)
 
 # Create environment
 env = gym.make('CartPole-v0')
