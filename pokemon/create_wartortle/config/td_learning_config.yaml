@@ -1,0 +1,23 @@
+td_learning:
+  step_size: 0.5
+  gamma: 0.5 # for TD(0)
+  # gamma: 0.95 # for TD(20)
+  epsilon: 0.5
+  num_episode: 3
+  init_value: 0.5
+  max_steps: 500
+  td_step: 1
+
+output:
+  value_func_path: "../output/value_function/value_function_grass1_and_diffloc05.json"
+  run_test: False
+  test_action_selec_algo: 'softmax'
+  test_step: 100
+  save_video: False
+  video_path: "../video/q_learning_grass1_and_diffloc05.mp4"
+  save_value_func_vis: True
+  value_func_vis_path: "../figure/value_function_visualization/value_function_grass1_and_diffloc05"
+  save_log: False
+  state_log_path: "../log/states_grass1_and_diffloc05.csv"
+  action_log_path: "../log/actions_grass1_and_diffloc05.csv"
+  reward_log_path: "../log/rewards_grass1_and_diffloc05.csv"

@@ -1,0 +1,3 @@
+map_path: "../map_image/pokemap_full_calibrated_CROPPED_1.png"
+arrow_path: "../map_image/transparent_arrow.png"
+arrow_rotation: [270,180,0,90,45,-45]

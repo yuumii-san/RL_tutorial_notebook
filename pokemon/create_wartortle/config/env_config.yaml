@@ -1,0 +1,27 @@
+path:
+  init_state: "../state_file/pallet_town_grass.state"
+  gb_path: "../PokemonRed.gb"
+
+reward_type:
+  use_level_reward: False
+  use_encounter_reward: False
+  use_win_battle_reward: False
+  use_in_grass_reward: True
+  use_novel_state_reward: False
+  use_heal_reward: True
+  use_move_to_different_loc: True
+
+reward_base:
+  level_reward_base: 2
+  encounter_reward_base: 1
+  win_battle_reward_base: 10
+  in_grass_reward_base: 1
+  novel_state_reward_base: 0.5
+  heal_reward_base: 1
+  move_to_different_loc_base: 1
+
+env:
+  action_freq: 24
+  state_type: "map"
+  termination_cond: "battle_lose"
+  rendering: False
